@@ -28,7 +28,11 @@ fi
 echo
 
 echo "Running Processes:"
-ps aux | head -n 10
+if command -v ps >/dev/null 2>&1; then
+    ps aux | head -n 10
+else
+    echo "Process information is not available on this system."
+fi
 echo
 
 echo "Network:"
@@ -39,4 +43,4 @@ else
 fi
 
 echo
-echo "Health check completed."
+echo "Health check completed successfully."
