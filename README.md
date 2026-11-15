@@ -1,4 +1,14 @@
-![DevSecOps Status Banner](.github/badges/banner.svg?raw=true)
+<table>
+  <tr>
+    <td align="center" bgcolor="#0066CC"><b>🟦 ARCHITECTURE: CLOUD &amp; DEVSECOPS</b></td>
+    <td align="center" bgcolor="#008000"><b>🟩 TARGET: DENMARK | SWITZERLAND | SWEDEN | FINLAND</b></td>
+  </tr>
+  <tr>
+    <td align="center" bgcolor="#4CBB17"><b>✅ CI/CD: AUTOMATED &amp; VERIFIED</b></td>
+    <td align="center" bgcolor="#D9383A"><b>🛡️ SECURITY: ZERO-TRUST HARDENED</b></td>
+  </tr>
+</table>
+
 
 
 # Kunal Kashyap | Cloud & DevSecOps Engineer 🚀
