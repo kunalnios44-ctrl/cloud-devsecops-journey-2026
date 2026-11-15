@@ -1,0 +1,23 @@
+name: Networking CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  network-diagnostics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x network-diagnostics.sh
+
+      - name: Run network diagnostics
+        run: ./network-diagnostics.sh
