@@ -1,4 +1,5 @@
-![DevSecOps Status Banner](.github/badges/banner.svg)
+![DevSecOps Status Banner](.github/badges/banner.svg?raw=true)
+
 
 # Kunal Kashyap | Cloud & DevSecOps Engineer 🚀
 
