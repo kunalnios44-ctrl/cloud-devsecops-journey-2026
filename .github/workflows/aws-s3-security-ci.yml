@@ -1,0 +1,170 @@
+
+name: AWS S3 Security CI/CD Audit
+
+on:
+  push:
+    paths:
+      - "aws-cloud-security/**"
+      - ".github/workflows/aws-s3-security-ci.yml"
+
+  pull_request:
+    paths:
+      - "aws-cloud-security/**"
+      - ".github/workflows/aws-s3-security-ci.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aws-s3-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-audit:
+    name: AWS S3 Static Security Audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Check required files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f aws-cloud-security/s3-bucket-policy.json
+          test -f aws-cloud-security/enforce-s3-security.sh
+
+          echo "Required files found."
+
+      - name: Validate JSON syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m json.tool \
+            aws-cloud-security/s3-bucket-policy.json \
+            > /dev/null
+
+          echo "JSON syntax validation passed."
+
+      - name: Deep policy validation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import sys
+
+          path = "aws-cloud-security/s3-bucket-policy.json"
+
+          with open(path, encoding="utf-8") as file:
+              policy = json.load(file)
+
+          if policy.get("Version") != "2012-10-17":
+              sys.exit("ERROR: Invalid IAM policy version.")
+
+          statements = policy.get("Statement")
+
+          if not isinstance(statements, list):
+              sys.exit("ERROR: Statement must be a list.")
+
+          expected = {
+              "DenyInsecureTransport",
+              "DenyIncorrectExplicitEncryption",
+              "DenyCustomerProvidedEncryption",
+          }
+
+          actual = [s.get("Sid") for s in statements]
+
+          if len(actual) != len(expected) or set(actual) != expected:
+              sys.exit(f"ERROR: Unexpected policy SIDs: {actual}")
+
+          for statement in statements:
+              if statement.get("Effect") != "Deny":
+                  sys.exit("ERROR: Every expected statement must deny.")
+
+              if statement.get("Principal") != "*":
+                  sys.exit("ERROR: Unexpected Principal.")
+
+              resources = statement.get("Resource")
+
+              if isinstance(resources, str):
+                  resources = [resources]
+
+              if not isinstance(resources, list) or not resources:
+                  sys.exit("ERROR: Missing policy resources.")
+
+              if not all(
+                  isinstance(resource, str)
+                  and resource.startswith("arn:aws:s3:::")
+                  for resource in resources
+              ):
+                  sys.exit("ERROR: Invalid S3 resource ARN.")
+
+          print("Deep policy validation passed.")
+          PY
+
+      - name: Validate Bash syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bash -n aws-cloud-security/enforce-s3-security.sh
+
+          echo "Bash syntax validation passed."
+
+      - name: Install ShellCheck
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
+
+          shellcheck --version
+
+      - name: Run ShellCheck
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shellcheck --severity=warning \
+            aws-cloud-security/enforce-s3-security.sh
+
+          echo "ShellCheck validation passed."
+
+      - name: Run S3 policy validation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bash aws-cloud-security/enforce-s3-security.sh --validate-only
+
+          echo "S3 policy validation passed."
+
+      - name: Security audit summary
+        if: success()
+        shell: bash
+        run: |
+          echo "=================================="
+          echo " AWS S3 SECURITY AUDIT: PASSED"
+          echo "=================================="
+          echo "JSON validation: PASSED"
+          echo "Policy validation: PASSED"
+          echo "Bash syntax: PASSED"
+          echo "ShellCheck: PASSED"
+          echo "=================================="
+          
