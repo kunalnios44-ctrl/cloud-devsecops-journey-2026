@@ -1,0 +1,27 @@
+name: Docker HA Cluster CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'docker-ha-cluster/**'
+      - '.github/workflows/docker-ha-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile docker-ha-cluster/app.py
+
+      - name: Validate Shell script syntax
+        run: bash -n docker-ha-cluster/deploy.sh
+
+      - name: Build production Docker image
+        run: docker build -t nordic-api:ci-test ./docker-ha-cluster
+        
