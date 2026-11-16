@@ -1,97 +1,86 @@
 <div align="center">
-  <img src="https://vercel.app" width="100%" />
+  <img src=".github/banner.svg" alt="Kunal Kashyap - Enterprise Cloud & DevSecOps Architecture" width="100%" />
 </div>
 
 <p align="center">
   <a href="https://github.com">
-    <img src="https://github.com/badge.svg" alt="DevSecOps Pipeline Status" />
+    <img src="https://github.com/badge.svg" alt="DevSecOps Security Gate" />
   </a>
-  <img src="https://shields.io" />
-  <img src="https://shields.io" />
-  <br/>
-  <img src="https://shields.io" />
 </p>
 
-<p align="center">
-  <b>📍 Open to Remote & Relocation:</b> 🇩🇰 <b>Denmark</b> • 🇸🇪 <b>Sweden</b> • 🇫🇮 <b>Finland</b> • 🇪🇺 <b>Europe</b>
-  <br/>
-  <b>✉️ Email:</b> <a href="mailto:kunalnios44@gmail.com"><b>kunalnios44@gmail.com</b></a> • <b>🐙 GitHub:</b> <a href="https://github.com"><b>@kunalnios44-ctrl</b></a>
-</p>
+<div align="center">
+
+| 🌍 **Target Regions (Relocation & Remote)** | 📬 **Direct Engineering Contact** | 💻 **Source Control** |
+| :---: | :---: | :---: |
+| 🇩🇰 **Denmark** • 🇸🇪 **Sweden** • 🇫🇮 **Finland** • 🇪🇺 **Europe** | **kunalnios44@gmail.com** | **[://github.com](https://://github.com)** |
+
+</div>
 
 ---
 
-### 🚀 Executive Summary
-Enterprise-grade **Cloud & DevSecOps Architecture** repository focused on automated security compliance, shift-left infrastructure hardening, and production telemetry. Every commit is automatically audited through a custom **GitHub Actions Security Gate** to enforce syntax integrity, zero-trust cloud policies, and secret hygiene.
+## 🎯 Architecture Vision & Engineering Focus
+
+This repository serves as a **production-grade blueprint** for modern **Cloud Infrastructure, High-Availability Containerization, and Automated DevSecOps**. Rather than treating security as an afterthought, every module in this workspace enforces **Zero-Trust principles, least-privilege IAM policies, and automated CI/CD compliance gates** before deployment.
 
 ---
 
-### 🛠️ Core Engineering & DevSecOps Stack
+## 🧩 Production Modules & Engineering Catalog
 
-| **Domain** | **Technologies & Tools** |
-| :--- | :--- |
-| 🐧 **OS & Automation** | ![Linux](https://shields.io) ![Bash](https://shields.io) ![Python](https://shields.io) |
-| 🔄 **CI/CD & DevSecOps** | ![GitHub Actions](https://shields.io) ![Git](https://shields.io) ![Shift-Left Security](https://shields.io) |
-| ☁️ **Cloud & Security** | ![AWS](https://shields.io) ![Microsoft Azure](https://shields.io) |
-| 🐳 **Containers & Orchestration** | ![Docker](https://shields.io) ![Kubernetes](https://shields.io) ![Helm](https://shields.io) |
-| 🏗️ **IaC & GitOps** | ![Terraform](https://shields.io) ![Ansible](https://shields.io) ![Argo CD](https://shields.io) |
-| 📊 **Observability** | ![Prometheus](https://shields.io) ![Grafana](https://shields.io) |
+| Module / Directory | Core Focus | Key Engineering Capabilities |
+| :--- | :--- | :--- |
+| **`aws-cloud-security/`** | **Cloud Hardening** | Automated S3 bucket policy enforcement, mandatory `AES256` encryption, and strict `HTTPS/TLS` transport rules. |
+| **`docker-ha-cluster/`** | **Container HA** | High-availability containerized service configurations designed for fault tolerance and zero-downtime scaling. |
+| **`kubernetes/`** | **Orchestration** | Production-ready Kubernetes deployment manifests, service routing, and declarative cluster state management. |
+| **`bash-automation/`** | **Ops Automation** | Modular shell scripting utilities for automated system reporting, log rotation, and server maintenance. |
+| **`linux-health-check.sh`** | **System Telemetry** | Real-time CPU, memory, disk I/O, and critical process health diagnostics for Linux production nodes. |
+| **`network-diagnostics.sh`** | **NetSec & Routing** | Automated DNS resolution, gateway latency, port availability, and SSL/TLS endpoint verification. |
+| **`.github/workflows/`** | **Shift-Left CI/CD** | Continuous automated security gate (`devsecops-pipeline.yml`) verifying repository integrity on every push. |
 
 ---
 
-### 🏗️ Zero-Trust DevSecOps Pipeline Architecture
+## 🔄 End-to-End DevSecOps Lifecycle
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     DEVELOPER WORKFLOW (Git Push / PR)                  │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│               GITHUB ACTIONS: ENTERPRISE SECURITY GATE                  │
-│  ├──► 1. Static Syntax Verification (JSON Schema & Bash Validation)     │
-│  ├──► 2. Cloud Policy Hardening (AWS S3 TLS & Encryption Enforcement)   │
-│  └──► 3. Automated Compliance & Audit Summary Generation                │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │ (Verified & Green)
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│           CLOUD & CONTAINER DELIVERY (Terraform • Docker • K8s)         │
-│  └──► GitOps Continuous Sync (Argo CD) ──► Telemetry (Prometheus/Grafana)│
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A[👨‍💻 Code Commit] --> B{🛡️ GitHub Actions Gate}
+    B -->|Audit Passed| C[☁️ AWS S3 Zero-Trust]
+    B -->|Audit Passed| D[🐳 Docker HA & K8s]
+    C --> E[📊 Telemetry & Health Checks]
+    D --> E
+    E --> F[🚀 Production Ready]
 ```
 
 ---
 
-### 📂 Repository Structure
+## 🛠️ Technology Matrix
 
-```text
-cloud-devsecops-journey-2026/
-├── .github/
-│   └── workflows/
-│       └── devsecops-pipeline.yml   # Live Enterprise DevSecOps Security Gate
-├── aws-cloud-security/
-│   ├── enforce-s3-security.sh       # Automated AWS S3 encryption & TLS hardening script
-│   └── s3-bucket-policy.json        # Zero-Trust S3 bucket policy (Deny unencrypted/HTTP)
-├── bash-automation/
-│   └── scripts/                     # Production system reporting & automation scripts
-├── linux-health-check.sh            # Automated disk, memory, and process telemetry
-├── network-diagnostics.sh           # DNS, routing, and HTTPS connectivity verification
-└── README.md                        # System architecture & engineering documentation
-```
+* **Operating Systems & Scripting:** `Linux (Ubuntu/RHEL)` • `Bash` • `Python`
+* **Cloud & Identity Security:** `AWS (S3, IAM, Security Policies)` • `Microsoft Azure` • `Zero-Trust Architecture`
+* **Containers & Orchestration:** `Docker` • `Docker Compose` • `Kubernetes` • `Helm`
+* **Infrastructure as Code & GitOps:** `Terraform` • `Ansible` • `Argo CD`
+* **CI/CD & Observability:** `Git` • `GitHub Actions` • `Prometheus` • `Grafana`
 
 ---
 
-### ⚡ Quick Start & Verification
+## 🛡️ Security & Compliance Standards Enforced
+
+* **Encryption in Transit & At Rest:** All cloud storage policies explicitly deny unencrypted (`HTTP` or non-`AES256`) object uploads.
+* **Automated Pre-Deployment Auditing:** Every commit triggers the **Enterprise DevSecOps Security Gate**, validating configurations and generating audit summaries.
+* **Proactive Node Diagnostics:** Built-in telemetry scripts detect resource bottlenecks and network anomalies before service degradation occurs.
+
+---
+
+## ⚡ Quick Deployment & Audit Execution
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/cloud-devsecops-journey-2026.git
+git clone https://://github.com/cloud-devsecops-journey-2026.git
 cd cloud-devsecops-journey-2026
 
-# 2. Grant execution permissions to diagnostic & security scripts
+# 2. Configure executable permissions
 chmod +x linux-health-check.sh network-diagnostics.sh aws-cloud-security/enforce-s3-security.sh
 
-# 3. Execute system & cloud security audits
+# 3. Run full infrastructure & security verification
 ./linux-health-check.sh
 ./network-diagnostics.sh
 ./aws-cloud-security/enforce-s3-security.sh
@@ -100,5 +89,5 @@ chmod +x linux-health-check.sh network-diagnostics.sh aws-cloud-security/enforce
 ---
 
 <div align="center">
-  <img src="https://vercel.app" width="100%" />
+  <sub>Engineered by <b>Kunal Kashyap</b> • Built for Scalable, Secure, and Automated Cloud Operations 🚀</sub>
 </div>
