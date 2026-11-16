@@ -1,26 +1,15 @@
-<div align="center">
-  <img src=".github/banner.svg" alt="Kunal Kashyap - Enterprise Cloud & DevSecOps Architecture" width="100%" />
-</div>
-
-<p align="center">
-  <a href="https://github.com">
-    <img src="https://github.com/badge.svg" alt="DevSecOps Security Gate" />
-  </a>
-</p>
-
-<div align="center">
-
-| 🌍 **Target Regions (Relocation & Remote)** | 📬 **Direct Engineering Contact** | 💻 **Source Control** |
-| :---: | :---: | :---: |
-| 🇩🇰 **Denmark** • 🇸🇪 **Sweden** • 🇫🇮 **Finland** • 🇪🇺 **Europe** | **kunalnios44@gmail.com** | **[://github.com](https://://github.com)** |
-
-</div>
+> [!IMPORTANT]
+> # 🛡️ KUNAL KASHYAP
+> ### **Cloud & DevSecOps Engineer | Zero-Trust Infrastructure & Automation**
+> **🟢 CI/CD Pipeline:** `Enterprise DevSecOps Gate (Verified & Passing)`  
+> **🌍 Target Regions:** 🇩🇰 **Denmark** • 🇸🇪 **Sweden** • 🇫🇮 **Finland** • 🇪🇺 **Europe** *(Open to Remote & Relocation)*  
+> **📬 Direct Contact:** **kunalnios44@gmail.com** • **💻 GitHub:** **[://github.com](https://://github.com)**
 
 ---
 
 ## 🎯 Architecture Vision & Engineering Focus
 
-This repository serves as a **production-grade blueprint** for modern **Cloud Infrastructure, High-Availability Containerization, and Automated DevSecOps**. Rather than treating security as an afterthought, every module in this workspace enforces **Zero-Trust principles, least-privilege IAM policies, and automated CI/CD compliance gates** before deployment.
+This repository serves as a **production-grade blueprint** for modern **Cloud Infrastructure, High-Availability Containerization, and Automated DevSecOps**. Every module enforces **Zero-Trust principles, least-privilege IAM policies, and automated CI/CD compliance gates** before deployment.
 
 ---
 
@@ -85,9 +74,3 @@ chmod +x linux-health-check.sh network-diagnostics.sh aws-cloud-security/enforce
 ./network-diagnostics.sh
 ./aws-cloud-security/enforce-s3-security.sh
 ```
-
----
-
-<div align="center">
-  <sub>Engineered by <b>Kunal Kashyap</b> • Built for Scalable, Secure, and Automated Cloud Operations 🚀</sub>
-</div>
