@@ -1,0 +1,106 @@
+name: AWS S3 Security CI/CD Audit
+
+on:
+  push:
+    paths:
+      - "aws-cloud-security/**"
+      - ".github/workflows/aws-s3-security-ci.yml"
+
+  pull_request:
+    paths:
+      - "aws-cloud-security/**"
+      - ".github/workflows/aws-s3-security-ci.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-audit:
+    name: AWS S3 Static Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check required files
+        run: |
+          test -f aws-cloud-security/s3-bucket-policy.json
+          test -f aws-cloud-security/enforce-s3-security.sh
+
+      - name: Check executable permission
+        run: |
+          chmod +x aws-cloud-security/enforce-s3-security.sh
+          test -x aws-cloud-security/enforce-s3-security.sh
+
+      - name: Validate JSON syntax
+        run: |
+          python -m json.tool \
+            aws-cloud-security/s3-bucket-policy.json \
+            > /dev/null
+
+      - name: Deep policy validation
+        run: |
+          python - <<'PY'
+          import json
+
+          path = "aws-cloud-security/s3-bucket-policy.json"
+
+          with open(path, encoding="utf-8") as file:
+              policy = json.load(file)
+
+          assert policy["Version"] == "2012-10-17"
+
+          statements = policy["Statement"]
+
+          expected = {
+              "DenyInsecureTransport",
+              "DenyIncorrectExplicitEncryption",
+              "DenyCustomerProvidedEncryption"
+          }
+
+          assert {s["Sid"] for s in statements} == expected
+
+          for statement in statements:
+              assert statement["Effect"] == "Deny"
+              assert statement["Principal"] == "*"
+
+              resources = statement["Resource"]
+              if isinstance(resources, str):
+                  resources = [resources]
+
+              assert resources
+              assert all(
+                  "YOUR_BUCKET_NAME" in resource
+                  for resource in resources
+              )
+
+          print("Deep policy validation passed.")
+          PY
+
+      - name: Validate Bash syntax
+        run: |
+          bash -n aws-cloud-security/enforce-s3-security.sh
+
+      - name: Run ShellCheck
+        run: |
+          command -v shellcheck
+          shellcheck --version
+          shellcheck --severity=warning \
+            aws-cloud-security/enforce-s3-security.sh
+
+      - name: Test policy rendering and validation
+        run: |
+          bash aws-cloud-security/enforce-s3-security.sh --validate-only
+
+      - name: Security audit completed
+        run: |
+          echo "All static security audit checks passed."
+          
