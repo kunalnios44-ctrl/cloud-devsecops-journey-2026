@@ -1,76 +1,96 @@
-> [!IMPORTANT]
+Cloud & DevSecOps Engineer | Building Zero-Trust AWS & Kubernetes Infrastructure • Open to Denmark & Europe Relocation / Remote
 > # 🛡️ KUNAL KASHYAP
 > ### **Cloud & DevSecOps Engineer | Zero-Trust Infrastructure & Automation**
-> **🟢 CI/CD Pipeline:** `Enterprise DevSecOps Gate (Verified & Passing)`  
-> **🌍 Target Regions:** 🇩🇰 **Denmark** • 🇸🇪 **Sweden** • 🇫🇮 **Finland** • 🇪🇺 **Europe** *(Open to Remote & Relocation)*  
-> **📬 Direct Contact:** **kunalnios44@gmail.com** • **💻 GitHub:** **[://github.com](https://://github.com)**
+>
+> **🟢 CI/CD Security Gate:** `Verified & Passing (100% Automated)`  
+> **📍 Target Location:** 🇩🇰 **Denmark (Primary Relocation)** • 🇸🇪 **Sweden** • 🇫🇮 **Finland** • 🇪🇺 **Europe** *(Open to Relocation)*  
+> **✉️ Direct Contact:** **kunalnios44@gmail.com**  
+> **💻 GitHub Portfolio:** **[://github.com](https://://github.com)**
 
 ---
 
-## 🎯 Architecture Vision & Engineering Focus
+## ⚡ Executive Engineering Overview
 
-This repository serves as a **production-grade blueprint** for modern **Cloud Infrastructure, High-Availability Containerization, and Automated DevSecOps**. Every module enforces **Zero-Trust principles, least-privilege IAM policies, and automated CI/CD compliance gates** before deployment.
-
----
-
-## 🧩 Production Modules & Engineering Catalog
-
-| Module / Directory | Core Focus | Key Engineering Capabilities |
-| :--- | :--- | :--- |
-| **`aws-cloud-security/`** | **Cloud Hardening** | Automated S3 bucket policy enforcement, mandatory `AES256` encryption, and strict `HTTPS/TLS` transport rules. |
-| **`docker-ha-cluster/`** | **Container HA** | High-availability containerized service configurations designed for fault tolerance and zero-downtime scaling. |
-| **`kubernetes/`** | **Orchestration** | Production-ready Kubernetes deployment manifests, service routing, and declarative cluster state management. |
-| **`bash-automation/`** | **Ops Automation** | Modular shell scripting utilities for automated system reporting, log rotation, and server maintenance. |
-| **`linux-health-check.sh`** | **System Telemetry** | Real-time CPU, memory, disk I/O, and critical process health diagnostics for Linux production nodes. |
-| **`network-diagnostics.sh`** | **NetSec & Routing** | Automated DNS resolution, gateway latency, port availability, and SSL/TLS endpoint verification. |
-| **`.github/workflows/`** | **Shift-Left CI/CD** | Continuous automated security gate (`devsecops-pipeline.yml`) verifying repository integrity on every push. |
+A **production-grade Cloud, Container Orchestration, and DevSecOps Architecture** repository engineered for **autonomous security compliance, high-availability workloads, and real-time system telemetry**. Every code push is automatically audited by a **Shift-Left GitHub Actions Security Gate** that validates configuration syntax, enforces Zero-Trust cloud policies, and prevents credential leaks before deployment.
 
 ---
 
-## 🔄 End-to-End DevSecOps Lifecycle
+## 🏗️ End-to-End DevSecOps & Zero-Trust Architecture
 
 ```mermaid
-flowchart LR
-    A[👨‍💻 Code Commit] --> B{🛡️ GitHub Actions Gate}
-    B -->|Audit Passed| C[☁️ AWS S3 Zero-Trust]
-    B -->|Audit Passed| D[🐳 Docker HA & K8s]
-    C --> E[📊 Telemetry & Health Checks]
-    D --> E
-    E --> F[🚀 Production Ready]
+flowchart TB
+    subgraph DEV["👨‍💻 1. Source Control & Shift-Left Trigger"]
+        A[Git Push / Pull Request] --> B[GitHub Repository: main]
+    end
+
+    subgraph SEC["🛡️ 2. Automated DevSecOps Security Gate"]
+        B --> C{devsecops-pipeline.yml}
+        C -->|Pass| D[JSON & Bash Syntax Validation]
+        C -->|Pass| E[Zero-Trust Secret & Policy Audit]
+    end
+
+    subgraph CLOUD["☁️ 3. Cloud Hardening & Orchestration"]
+        D & E --> F[AWS S3 Encryption & TLS Enforcement]
+        D & E --> G[Docker HA Cluster & Kubernetes]
+    end
+
+    subgraph OPS["📊 4. Production Telemetry & NetSec"]
+        F & G --> H[Linux Health & Resource Telemetry]
+        F & G --> I[Network & SSL/TLS Diagnostics]
+    end
 ```
 
 ---
 
-## 🛠️ Technology Matrix
+## 🧩 Production Infrastructure Modules
 
-* **Operating Systems & Scripting:** `Linux (Ubuntu/RHEL)` • `Bash` • `Python`
-* **Cloud & Identity Security:** `AWS (S3, IAM, Security Policies)` • `Microsoft Azure` • `Zero-Trust Architecture`
-* **Containers & Orchestration:** `Docker` • `Docker Compose` • `Kubernetes` • `Helm`
-* **Infrastructure as Code & GitOps:** `Terraform` • `Ansible` • `Argo CD`
-* **CI/CD & Observability:** `Git` • `GitHub Actions` • `Prometheus` • `Grafana`
-
----
-
-## 🛡️ Security & Compliance Standards Enforced
-
-* **Encryption in Transit & At Rest:** All cloud storage policies explicitly deny unencrypted (`HTTP` or non-`AES256`) object uploads.
-* **Automated Pre-Deployment Auditing:** Every commit triggers the **Enterprise DevSecOps Security Gate**, validating configurations and generating audit summaries.
-* **Proactive Node Diagnostics:** Built-in telemetry scripts detect resource bottlenecks and network anomalies before service degradation occurs.
+| Directory / Module | Engineering Domain | Technical Implementation & Security Controls |
+| :--- | :--- | :--- |
+| **`aws-cloud-security/`** | **Cloud Security & IAM** | Enforces mandatory `AES256` server-side encryption and blocks all unencrypted `HTTP` traffic via strict S3 bucket policies (`enforce-s3-security.sh` & `s3-bucket-policy.json`). |
+| **`docker-ha-cluster/`** | **High-Availability Containers** | Multi-container service architecture engineered for fault tolerance, service isolation, and zero-downtime restarts. |
+| **`kubernetes/`** | **Container Orchestration** | Declarative Kubernetes deployment manifests, service networking, and scalable cluster workload definitions. |
+| **`bash-automation/`** | **Systems Automation** | Modular POSIX/Bash automation utilities designed for repeatable server configuration and operational efficiency. |
+| **`linux-health-check.sh`** | **Node Observability** | Automated production diagnostics tracking CPU load, memory utilization, disk thresholds, and active system daemons. |
+| **`network-diagnostics.sh`** | **Network Security** | End-to-end verification of DNS resolution, routing latency, open ports, and HTTPS/TLS handshake integrity. |
+| **`.github/workflows/`** | **CI/CD Compliance Gate** | Automated pipeline (`devsecops-pipeline.yml`) executing continuous repository audits and generating compliance summaries. |
 
 ---
 
-## ⚡ Quick Deployment & Audit Execution
+## 🛠️ Core Technical Stack
+
+| Category | Production Technologies |
+| :--- | :--- |
+| **Operating Systems & Scripting** | `Linux (Ubuntu / RHEL)` • `Bash Scripting` • `Python` |
+| **Cloud Platforms & Security** | `AWS (S3, IAM, Security Policies)` • `Microsoft Azure` • `Zero-Trust Architecture` |
+| **Containers & Orchestration** | `Docker` • `Docker Compose` • `Kubernetes` • `Helm` |
+| **Infrastructure as Code & GitOps** | `Terraform` • `Ansible` • `Argo CD` |
+| **CI/CD & Observability** | `Git` • `GitHub Actions` • `Prometheus` • `Grafana` |
+
+---
+
+## 🔒 Enforced Security & Compliance Standards
+
+* **Mandatory Encryption (At Rest & In Transit):** Cloud storage rules strictly reject unencrypted uploads and enforce `aws:SecureTransport` (TLS).
+* **Zero-Trust Secret Hygiene:** Automated repository scanning prevents hardcoded API keys or cloud credentials from entering version control.
+* **Proactive Fault Detection:** Built-in Linux and network telemetry scripts identify system bottlenecks before production impact.
+
+---
+
+## 🚀 Quick Start & Audit Execution
 
 ```bash
 # 1. Clone the repository
 git clone https://://github.com/cloud-devsecops-journey-2026.git
 cd cloud-devsecops-journey-2026
 
-# 2. Configure executable permissions
+# 2. Grant execution permissions
 chmod +x linux-health-check.sh network-diagnostics.sh aws-cloud-security/enforce-s3-security.sh
 
-# 3. Run full infrastructure & security verification
+# 3. Run full system, network, and cloud security audits
 ./linux-health-check.sh
 ./network-diagnostics.sh
 ./aws-cloud-security/enforce-s3-security.sh
 ```
+
+> [!TIP]
+> **Recruiter & Hiring Manager Note:** Click on the **[Actions](https://://github.com/cloud-devsecops-journey-2026/actions)** tab above to inspect live execution logs and compliance reports generated by the **Enterprise DevSecOps Security Gate**.
