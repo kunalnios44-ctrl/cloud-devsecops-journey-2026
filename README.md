@@ -121,6 +121,43 @@ chmod +x supply-chain/sbom-scan.sh
 ## Output
 Reports are safely saved inside the `supply-chain/` directory using sanitized filenames:
 `supply-chain/sbom-report-<image_name>.spdx.json`
+# 🌍 Global Multi-Region Cloud & DevSecOps Engineering
+
+Welcome to my production-grade, enterprise-level infrastructure repository! This architecture implements a fault-tolerant, multi-region cloud foundation spanning Europe and India.
+
+---
+
+## 🏗️ Architecture Overview
+
+- **Primary Region (`eu-north-1` - Stockholm, Sweden 🇸🇪)**:
+  - Multi-AZ VPC setup (`10.0.0.0/16`) across Zone A and Zone B.
+  - Public Subnets with Internet Gateway routing for external entry points.
+  - Isolated Private Subnets with dedicated route tables for secure workloads.
+  - Strict Production Security Groups (HTTPS/TLS enforced).
+
+- **Disaster Recovery Region (`ap-south-1` - Mumbai, India 🇮🇳)**:
+  - Multi-AZ DR VPC setup (`10.1.0.0/16`) across Zone A and Zone B.
+  - Mirror architecture ensuring high availability and business continuity.
+
+---
+
+## 🛠️ Tech Stack & Infrastructure Layout
+
+This repository follows a clean, minimal 4-file structure to eliminate repository clutter:
+
+1. **`main.tf`** — Core multi-region cloud providers, VPCs, subnets, internet gateways, route tables, and security groups.
+2. **`variables.tf`** — Configurable parameters for regions, environments, and network CIDR blocks.
+3. **`outputs.tf`** — Exported endpoints and resource IDs.
+4. **`argo-cd.yaml`** — GitOps automated deployment configuration.
+
+---
+
+## 🔒 State Management & Security
+- **Backend**: Terraform Remote State stored securely in Amazon S3 (`kunal-global-terraform-state-bucket`) with modern **Native S3 Locking (`use_lockfile = true`)**.
+- **Security**: Zero-trust networking principles with strict ingress and egress boundaries.
+
+---
+*Targeting international cloud & DevSecOps engineering roles (2027 🇩🇰🇫🇮🇸🇪🇨🇭).*
 
 
 > [!TIP]
