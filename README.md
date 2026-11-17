@@ -134,13 +134,6 @@ Welcome to my production-grade, enterprise-level infrastructure repository! This
   - Public Subnets with Internet Gateway routing for external entry points.
   - Isolated Private Subnets with dedicated route tables for secure workloads.
   - Strict Production Security Groups (HTTPS/TLS enforced).
-
-- **Disaster Recovery Region (`ap-south-1` - Mumbai, India 🇮🇳)**:
-  - Multi-AZ DR VPC setup (`10.1.0.0/16`) across Zone A and Zone B.
-  - Mirror architecture ensuring high availability and business continuity.
-
----
-
 ## 🛠️ Tech Stack & Infrastructure Layout
 
 This repository follows a clean, minimal 4-file structure to eliminate repository clutter:
