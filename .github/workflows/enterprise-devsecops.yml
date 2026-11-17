@@ -1,0 +1,135 @@
+package main
+
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"flag"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+)
+
+type AuditReport struct {
+	Failed     bool
+	Incomplete int
+}
+
+func validateTargetHost(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", fmt.Errorf("host cannot be empty")
+	}
+	if ip := net.ParseIP(trimmed); ip != nil {
+		return ip.String(), nil
+	}
+	if strings.ContainsAny(trimmed, " /\\:@") {
+		return "", fmt.Errorf("invalid hostname format: %s", trimmed)
+	}
+	return trimmed, nil
+}
+
+func (r *AuditReport) auditSSH(host string, allowSSH bool) {
+	addr := net.JoinHostPort(host, "22")
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		fmt.Println("[PASS] SSH (Port 22): Closed/Filtered")
+		return
+	}
+	_ = conn.Close()
+	if !allowSSH {
+		fmt.Println("[FAIL] SSH (Port 22): Exposed without -allow-ssh")
+		r.Failed = true
+		return
+	}
+	fmt.Println("[PASS] SSH (Port 22): Allowed by policy")
+}
+
+func (r *AuditReport) auditHTTP(host string) {
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get("http://" + host)
+	if err != nil {
+		fmt.Println("[PASS] Cleartext HTTP (Port 80): Closed/Unreachable")
+		return
+	}
+	_ = resp.Body.Close()
+	fmt.Println("[FAIL] Cleartext HTTP (Port 80): Unencrypted endpoint exposed")
+	r.Failed = true
+}
+
+func (r *AuditReport) auditTLS(host string) {
+	dialer := &net.Dialer{Timeout: 3 * time.Second}
+	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, "443"), &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	})
+	if err != nil {
+		fmt.Println("[INCONCLUSIVE] TLS (Port 443): Endpoint unreachable")
+		r.Incomplete++
+		return
+	}
+	_ = conn.Close()
+	fmt.Println("[PASS] TLS (Port 443): TLS 1.2+ verified")
+}
+
+func (r *AuditReport) auditK8sAPI(host, caPath string) {
+	pool := x509.NewCertPool()
+	if caPath != "" {
+		pemData, err := os.ReadFile(caPath) // #nosec G304
+		if err != nil || !pool.AppendCertsFromPEM(pemData) {
+			fmt.Println("[FAIL] Kubernetes API: Invalid CA PEM file")
+			r.Failed = true
+			return
+		}
+	}
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:    pool,
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+	resp, err := client.Get("https://" + net.JoinHostPort(host, "6443") + "/version")
+	if err != nil {
+		fmt.Println("[INCONCLUSIVE] Kubernetes API (Port 6443): Unreachable")
+		r.Incomplete++
+		return
+	}
+	_ = resp.Body.Close()
+	fmt.Println("[PASS] Kubernetes API (Port 6443): Verified")
+}
+
+func main() {
+	rawHost := flag.String("host", "127.0.0.1", "Target IPv4/IPv6/Hostname")
+	k8sCA := flag.String("k8s-ca", "", "Path to Kubernetes cluster CA PEM")
+	allowSSH := flag.Bool("allow-ssh", false, "Allow RFC-4253 SSH-2.0 exposure")
+	flag.Parse()
+
+	host, err := validateTargetHost(*rawHost)
+	if err != nil {
+		fmt.Printf("[FAIL] Input Validation: %v\n", err)
+		os.Exit(1)
+	}
+
+	rep := &AuditReport{}
+	fmt.Printf("=== Strict Zero-Trust External Network Probe | Target: %s ===\n", host)
+
+	rep.auditSSH(host, *allowSSH)
+	rep.auditHTTP(host)
+	rep.auditTLS(host)
+	rep.auditK8sAPI(host, *k8sCA)
+
+	if rep.Failed {
+		fmt.Println("=== RESULT: FAIL (Security policy violations detected) ===")
+		os.Exit(1)
+	}
+	if rep.Incomplete > 0 {
+		fmt.Printf("=== RESULT: INCONCLUSIVE (%d incomplete endpoint checks) ===\n", rep.Incomplete)
+		os.Exit(2)
+	}
+	fmt.Println("=== RESULT: PASS (All four endpoint checks passed) ===")
+	os.Exit(0)
+}
