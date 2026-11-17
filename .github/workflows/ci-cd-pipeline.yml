@@ -1,0 +1,674 @@
+name: Global Enterprise DevSecOps V6.0
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devsecops-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-pipeline:
+    name: Global Security and Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      # --------------------------------------------------
+      # 0. CHECKOUT AND WORKSPACE
+      # --------------------------------------------------
+      - name: Checkout Source Code
+        id: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Initialize Workspace
+        id: init_workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p \
+            reports \
+            reports/sarif-uploads/gosec \
+            reports/sarif-uploads/trivy-image
+
+      # --------------------------------------------------
+      # 1. PROJECT TECHNOLOGY DETECTION
+      # --------------------------------------------------
+      - name: Detect Project Technologies
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          find_file() {
+            find . \
+              -type d \( \
+                -name .git -o \
+                -name node_modules -o \
+                -name .terraform -o \
+                -name .venv -o \
+                -name vendor \
+              \) -prune \
+              -o -type f -name "$1" -print -quit | grep -q .
+          }
+
+          has_python=false
+          has_go=false
+          has_node=false
+          has_java=false
+          has_terraform=false
+          has_kubernetes=false
+          has_docker=false
+
+          if find_file '*.py' ||
+             find_file requirements.txt ||
+             find_file pyproject.toml; then
+            has_python=true
+          fi
+
+          if find_file go.mod; then
+            has_go=true
+          fi
+
+          if find_file package.json; then
+            has_node=true
+          fi
+
+          if find_file pom.xml ||
+             find_file gradlew ||
+             find_file build.gradle ||
+             find_file build.gradle.kts; then
+            has_java=true
+          fi
+
+          if find_file '*.tf'; then
+            has_terraform=true
+          fi
+
+          if find_file '*Dockerfile*'; then
+            has_docker=true
+          fi
+
+          while IFS= read -r -d '' file; do
+            if grep -qE '^[[:space:]]*apiVersion:' "$file" &&
+               grep -qE '^[[:space:]]*kind:' "$file"; then
+              has_kubernetes=true
+              break
+            fi
+          done < <(
+            find . \
+              -type d \( -name .git -o -name node_modules -o -name .terraform \) -prune \
+              -o -type f \( -name '*.yaml' -o -name '*.yml' \) -print0
+          )
+
+          {
+            echo "python=$has_python"
+            echo "go=$has_go"
+            echo "node=$has_node"
+            echo "java=$has_java"
+            echo "terraform=$has_terraform"
+            echo "kubernetes=$has_kubernetes"
+            echo "docker=$has_docker"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Detected project technologies:"
+          cat "$GITHUB_OUTPUT"
+
+      # --------------------------------------------------
+      # 2. PYTHON RUNTIME
+      # --------------------------------------------------
+      - name: Setup Python Runtime
+        id: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # --------------------------------------------------
+      # 3. GITLEAKS SECRET SCANNING
+      # --------------------------------------------------
+      - name: Gitleaks Secret Detection
+        id: gitleaks
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            -v "$PWD:/repo" \
+            zricethezav/gitleaks@sha256:593cd28148b813b2d97825d19485b0d00f7236e78ebbc2a3a93e5066db102604 \
+            detect \
+            --source=/repo \
+            --redact \
+            --report-format=sarif \
+            --report-path=/repo/reports/gitleaks.sarif \
+            --exit-code=1
+
+      # --------------------------------------------------
+      # 4. SEMGREP SAST
+      # --------------------------------------------------
+      - name: Semgrep SAST Scan
+        id: semgrep
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m venv /tmp/semgrep-venv
+          /tmp/semgrep-venv/bin/pip install \
+            --quiet \
+            --upgrade pip \
+            semgrep==1.95.0
+
+          /tmp/semgrep-venv/bin/semgrep scan \
+            --config auto \
+            --error \
+            --metrics=off \
+            --sarif \
+            --output=reports/semgrep.sarif \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude .terraform \
+            --exclude .venv \
+            .
+
+      # --------------------------------------------------
+      # 5. TRIVY FILESYSTEM SCAN
+      # --------------------------------------------------
+      - name: Trivy Filesystem Security Scan
+        id: trivy_fs
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: sarif
+          output: reports/trivy-fs.sarif
+
+      # --------------------------------------------------
+      # 6. PYTHON QUALITY AND SECURITY
+      # --------------------------------------------------
+      - name: Setup Python Quality Tools
+        id: setup_python_quality
+        if: steps.detect.outputs.python == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/pyquality-venv
+          /tmp/pyquality-venv/bin/pip install \
+            --quiet \
+            --upgrade pip \
+            ruff==0.9.5 \
+            bandit==1.8.2
+
+      - name: Python Ruff Lint
+        id: python_ruff
+        if: steps.detect.outputs.python == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/pyquality-venv/bin/ruff check .
+
+      - name: Python Bandit Security Scan
+        id: bandit
+        if: steps.detect.outputs.python == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/pyquality-venv/bin/bandit \
+            -r . \
+            -x ./.git,./.venv,./node_modules \
+            -ll \
+            -f sarif \
+            -o reports/bandit.sarif
+
+      # --------------------------------------------------
+      # 7. GO SECURITY AND QUALITY
+      # --------------------------------------------------
+      - name: Setup Go Runtime
+        id: setup_go
+        if: steps.detect.outputs.go == 'true'
+        uses: actions/setup-go@v5[span_4](start_span)[span_4](end_span)[span_5](start_span)[span_5](end_span)
+        with:
+          go-version: "1.24.0"
+          cache: false
+
+      - name: Go Multi-Module Checks
+        id: go_quality
+        if: steps.detect.outputs.go == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          failed=0
+
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.0
+          install_status=$?
+
+          if [[ "$install_status" -ne 0 ]]; then
+            echo "::error::Unable to install GoSec"
+            exit 1
+          fi
+
+          export PATH="$(go env GOPATH)/bin:$PATH"
+
+          mapfile -t go_mods < <(
+            find . \
+              -type d \( \
+                -name .git -o \
+                -name node_modules -o \
+                -name .terraform -o \
+                -name vendor \
+              \) -prune \
+              -o -type f -name go.mod -print | sort
+          )
+
+          if [[ "${#go_mods[@]}" -eq 0 ]]; then
+            echo "::error::Go was detected but no go.mod files were found"
+            exit 1
+          fi
+
+          index=0
+
+          for mod in "${go_mods[@]}"; do
+            module_dir="$(dirname "$mod")"
+            index=$((index + 1))
+
+            echo "Checking Go module: $module_dir"
+
+            (
+              cd "$module_dir"
+              go vet ./...
+            ) || failed=1
+
+            (
+              cd "$module_dir"
+              go test -race ./...
+            ) || failed=1
+
+            (
+              cd "$module_dir"
+              gosec \
+                -fmt=sarif \
+                -out="$GITHUB_WORKSPACE/reports/sarif-uploads/gosec/gosec-$index.sarif" \
+                ./...
+            ) || failed=1
+
+            if [[ ! -s "reports/sarif-uploads/gosec/gosec-$index.sarif" ]]; then
+              echo "::error::GoSec report missing for $module_dir"
+              failed=1
+            fi
+          done
+
+          exit "$failed"
+
+      # --------------------------------------------------
+      # 8. NODE.JS WORKSPACES AND INDEPENDENT PACKAGES
+      # --------------------------------------------------
+      - name: Setup Node.js Runtime
+        id: setup_node
+        if: steps.detect.outputs.node == 'true'
+        uses: actions/setup-node@v4[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
+        with:
+          node-version: "22"
+
+      - name: Node.js Workspace and Package Checks
+        id: node_quality
+        if: steps.detect.outputs.node == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          corepack enable || exit 1
+          failed=0
+
+          run_package() {
+            local dir="$1"
+            local manager=""
+            local install_ok=0
+
+            echo "Checking Node package: $dir"
+
+            if [[ -f "$dir/package-lock.json" ]]; then
+              manager=npm
+            elif [[ -f "$dir/pnpm-lock.yaml" ]]; then
+              manager=pnpm
+            elif [[ -f "$dir/yarn.lock" ]]; then
+              manager=yarn
+            else
+              echo "::error::Lockfile missing in $dir"
+              return 1
+            fi
+
+            case "$manager" in
+              npm)
+                (cd "$dir" && npm ci) || install_ok=1
+                ;;
+              pnpm)
+                (cd "$dir" && corepack pnpm install --frozen-lockfile) || install_ok=1
+                ;;
+              yarn)
+                (
+                  cd "$dir"
+                  yarn_version="$(yarn --version)"
+                  if [[ "$yarn_version" == 1.* ]]; then
+                    yarn install --frozen-lockfile
+                  else
+                    yarn install --immutable
+                  fi
+                ) || install_ok=1
+                ;;
+            esac
+
+            if [[ "$install_ok" -ne 0 ]]; then
+              echo "::error::Dependency installation failed in $dir"
+              return 1
+            fi
+
+            case "$manager" in
+              npm)
+                (cd "$dir" && npm audit --audit-level=high) || failed=1
+                ;;
+              pnpm)
+                (cd "$dir" && corepack pnpm audit --audit-level high) || failed=1
+                ;;
+              yarn)
+                (
+                  cd "$dir"
+                  yarn_version="$(yarn --version)"
+                  if [[ "$yarn_version" == 1.* ]]; then
+                    yarn audit --level high
+                  else
+                    yarn npm audit --severity high
+                  fi
+                ) || failed=1
+                ;;
+            esac
+
+            if node -e "const p=require('./$dir/package.json'); process.exit(p.scripts?.test ? 0 : 1)" 2>/dev/null; then
+              case "$manager" in
+                npm)
+                  (cd "$dir" && npm test) || failed=1
+                  ;;
+                pnpm)
+                  (cd "$dir" && corepack pnpm test) || failed=1
+                  ;;
+                yarn)
+                  (cd "$dir" && yarn test) || failed=1
+                  ;;
+              esac
+            fi
+
+            return 0
+          }
+
+          if [[ -f package.json ]]; then
+            if ! run_package "."; then
+              failed=1
+            fi
+          fi
+
+          while IFS= read -r -d '' package_file; do
+            dir="$(dirname "$package_file")"
+
+            [[ "$dir" == "." ]] && continue
+
+            if [[ -f package.json ]] &&
+               node -e '
+                 const p=require("./package.json");
+                 const w=p.workspaces;
+                 process.exit(
+                   Array.isArray(w) ||
+                   (w && Array.isArray(w.packages)) ? 0 : 1
+                 )
+               '; then
+              relative="${dir#./}"
+              if node - "$relative" <<'NODE'
+          const fs=require("fs");
+          const path=require("path");
+          const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));
+          const rel=process.argv[2];
+          const patterns=Array.isArray(pkg.workspaces)
+            ? pkg.workspaces
+            : (pkg.workspaces?.packages || []);
+          const matches=(pattern)=>{
+            const p=pattern.replace(/\/\*\*?$/, "");
+            return rel===p || rel.startsWith(p+"/");
+          };
+          process.exit(patterns.some(matches) ? 0 : 1);
+          NODE
+              then
+                continue
+              fi
+            fi
+
+            if [[ -f "$dir/package-lock.json" ||
+                  -f "$dir/pnpm-lock.yaml" ||
+                  -f "$dir/yarn.lock" ]]; then
+              run_package "$dir" || failed=1
+            fi
+          done < <(
+            find . -mindepth 2 \
+              -type d \( \
+                -name .git -o \
+                -name node_modules -o \
+                -name .terraform -o \
+                -name .venv \
+              \) -prune \
+              -o -type f -name package.json -print0
+          )
+
+          exit "$failed"
+
+      # --------------------------------------------------
+      # 9. JAVA MAVEN AND GRADLE
+      # --------------------------------------------------
+      - name: Setup Java Runtime
+        id: setup_java
+        if: steps.detect.outputs.java == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        id: setup_gradle
+        if: steps.detect.outputs.java == 'true'
+        uses: gradle/actions/setup-gradle@v4[span_8](start_span)[span_8](end_span)[span_9](start_span)[span_9](end_span)
+
+      - name: Java Maven and Gradle Verification
+        id: java_quality
+        if: steps.detect.outputs.java == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          failed=0
+
+          find_wrapper_root() {
+            local dir
+            local wrapper="$2"
+
+            dir="$(cd "$1" && pwd -P)"
+
+            while :; do
+              if [[ -f "$dir/$wrapper" ]]; then
+                printf '%s\n' "$dir"
+                return 0
+              fi
+
+              [[ "$dir" == "$GITHUB_WORKSPACE" ]] && break
+              dir="$(dirname "$dir")"
+            done
+
+            return 1
+          }
+
+          mapfile -t pom_files < <(
+            find . \
+              -type d \( -name .git -o -name node_modules -o -name .terraform \) -prune \
+              -o -type f -name pom.xml -print | sort
+          )
+
+          declare -A maven_roots=()
+
+          for pom in "${pom_files[@]}"; do
+            dir="$(dirname "$pom")"
+
+            if root="$(find_wrapper_root "$dir" mvnw)"; then
+              maven_roots["$root"]=1
+            else
+              echo "::error::Maven wrapper not found for $pom"
+              failed=1
+            fi
+          done
+
+          for root in "${!maven_roots[@]}"; do
+            echo "Maven reactor: $root"
+            chmod +x "$root/mvnw"
+            (cd "$root" && ./mvnw -B -ntp verify) || failed=1
+          done
+
+          mapfile -t gradle_files < <(
+            find . \
+              -type d \( -name .git -o -name node_modules -o -name .terraform \) -prune \
+              -o -type f \( -name build.gradle -o -name build.gradle.kts \) -print | sort
+          )
+
+          declare -A gradle_roots=()
+
+          for build_file in "${gradle_files[@]}"; do
+            dir="$(dirname "$build_file")"
+
+            if root="$(find_wrapper_root "$dir" gradlew)"; then
+              gradle_roots["$root"]=1
+            else
+              echo "::error::Gradle wrapper not found for $build_file"
+              failed=1
+            fi
+          done
+
+          for root in "${!gradle_roots[@]}"; do
+            echo "Gradle build: $root"
+            chmod +x "$root/gradlew"
+            (cd "$root" && ./gradlew test --no-daemon) || failed=1
+          done
+
+          if [[ "${#pom_files[@]}" -eq 0 &&
+                "${#gradle_files[@]}" -eq 0 ]]; then
+            echo "::error::Java detected but no Maven or Gradle build files found"
+            failed=1
+          fi
+
+          exit "$failed"
+
+      # --------------------------------------------------
+      # 10. TERRAFORM
+      # --------------------------------------------------
+      - name: Setup Terraform
+        id: setup_terraform
+        if: steps.detect.outputs.terraform == 'true'
+        uses: hashicorp/setup-terraform@v3[span_10](start_span)[span_10](end_span)[span_11](start_span)[span_11](end_span)
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Terraform Formatting and Validation
+        id: terraform_validate
+        if: steps.detect.outputs.terraform == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=0
+
+          terraform fmt -check -recursive || failed=1
+
+          mapfile -t tf_dirs < <(
+            find . \
+              -type d \( \
+                -name .git -o \
+                -name .terraform -o \
+                -name node_modules \
+              \) -prune \
+              -o -type f -name '*.tf' -printf '%h\n' | sort -u
+          )
+
+          if [[ "${#tf_dirs[@]}" -eq 0 ]]; then
+            echo "::error::Terraform detected but no Terraform directories found"
+            exit 1
+          fi
+
+          for dir in "${tf_dirs[@]}"; do
+            terraform -chdir="$dir" init \
+              -backend=false \
+              -input=false \
+              -no-color || failed=1
+
+            terraform -chdir="$dir" validate -no-color || failed=1
+          done
+
+          exit "$failed"
+
+      - name: Checkov Infrastructure Security Scan
+        id: checkov
+        if: steps.detect.outputs.terraform == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m venv /tmp/checkov-venv
+          /tmp/checkov-venv/bin/pip install \
+            --quiet \
+            --upgrade pip \
+            checkov==3.2.333
+
+          /tmp/checkov-venv/bin/checkov \
+            -d . \
+            --framework terraform \
+            --quiet \
+            --compact \
+            --output sarif \
+            --output-file-path reports/checkov.sarif
+
+      # --------------------------------------------------
+      # 11. KUBERNETES VALIDATION
+      # --------------------------------------------------
+      - name: Kubernetes Kubeconform Validation
+        id: kubeconform
+        if: steps.detect.outputs.kubernetes == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          k8s_files=()
+
+          while IFS= read -r -d '' manifest; do
+            if grep -qE '^
