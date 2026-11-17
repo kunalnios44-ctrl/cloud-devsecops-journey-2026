@@ -1,0 +1,185 @@
+name: Enterprise DevSecOps Architecture
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+  packages: write
+
+jobs:
+  detect-stack:
+    name: Detect Project Stack
+    runs-on: ubuntu-latest
+    outputs:
+      has_go: ${{ steps.filter.outputs.go }}
+      has_python: ${{ steps.filter.outputs.python }}
+      has_tf: ${{ steps.filter.outputs.terraform }}
+      has_k8s: ${{ steps.filter.outputs.k8s }}
+      has_docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            go:
+              - '**/*.go'
+              - 'go.mod'
+            python:
+              - '**/*.py'
+              - 'requirements.txt'
+            terraform:
+              - '**/*.tf'
+            k8s:
+              - 'k8s/**/*.yaml'
+              - 'k8s/**/*.yml'
+              - 'manifests/**/*.yaml'
+              - 'manifests/**/*.yml'
+            docker:
+              - '**/Dockerfile'
+
+  security-baseline:
+    name: Secret & Vulnerability Baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: false
+
+      - name: Trivy Filesystem CVE Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+  go-pipeline:
+    name: Go Build, Vet & Race
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Go Vet, Race Test & Build
+        run: |
+          go vet ./...
+          go test -race -v ./...
+          go build -v ./...
+
+  python-pipeline:
+    name: Python Lint & Bandit SAST
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Flake8 & Bandit
+        run: |
+          pip install flake8 bandit
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          bandit -r . -ll
+
+  terraform-pipeline:
+    name: Terraform & Checkov IaC
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_tf == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format & Validate
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false
+          terraform validate
+
+      - name: Checkov IaC Policy Scan
+        uses: bridgecrewio/checkov-action@v12.2995.0
+        with:
+          directory: .
+          framework: terraform
+
+  kubernetes-pipeline:
+    name: Kubernetes Manifest Validation
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_k8s == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kubeconform Schema Validation
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+          for dir in k8s manifests; do
+            if [ -d "$dir" ]; then
+              kubeconform -strict -summary "$dir"
+            fi
+          done
+
+  docker-sbom-pipeline:
+    name: Docker Build, Trivy & SBOM
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_docker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Container Image
+        run: docker build -t app-image:${{ github.sha }} .
+
+      - name: Trivy Container Image Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'app-image:${{ github.sha }}'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: 'app-image:${{ github.sha }}'
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: container-sbom
+          path: sbom.spdx.json
+
+  release-gate:
+    name: Production Release Gate
+    needs:
+      - security-baseline
+      - go-pipeline
+      - python-pipeline
+      - terraform-pipeline
+      - kubernetes-pipeline
+      - docker-sbom-pipeline
+    if: ${{ always() && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify All Executed Gates
+        run: echo "All gates passed successfully!"
+        
