@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: global-infra-gitops
+  namespace: argocd
+  labels:
+    environment: production
+    arch: multi-region
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/kunalnios44-ctrl/cloud-devsecops-journey-2026'
+    targetRevision: HEAD
+    path: '.'
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      
