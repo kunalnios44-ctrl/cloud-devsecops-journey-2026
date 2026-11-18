@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "=== System Health Check Dashboard ==="
+echo "=== System Inventory Snapshot ==="
 echo "Date: $(date)"
 echo ""
 
@@ -31,4 +31,4 @@ else
 fi
 
 echo ""
-echo "=== Health Check Complete ==="
+echo "=== Snapshot Complete (no automated health verdict) ==="
