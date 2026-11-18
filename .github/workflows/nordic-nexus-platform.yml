@@ -110,7 +110,10 @@ jobs:
 
       - name: Validate Kubernetes manifests
         run: |
-          docker run --rm -v "${{ github.workspace }}:/work" ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary /work/kubernetes/production-manifest.yaml
+          docker run --rm -v "${{ github.workspace }}:/work" ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary /work/kubernetes/demo-manifest.yaml
+
+      - name: Validate S3 policy helper without cloud access
+        run: bash aws-cloud-security/aws-cloud-security/enforce-s3-security.sh --validate-only
 
       - name: Generate SPDX SBOM with Syft
         uses: anchore/sbom-action@v0.17.9
@@ -169,4 +172,10 @@ jobs:
         env:
           IMAGE: ghcr.io/${{ github.repository }}
           DIGEST: ${{ steps.publish.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+          cosign verify \\
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/nordic-nexus-platform.yml@refs/heads/main$" \\
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \\
+            "${IMAGE}@${DIGEST}"
