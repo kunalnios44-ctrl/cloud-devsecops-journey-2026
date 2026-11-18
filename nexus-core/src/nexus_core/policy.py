@@ -21,19 +21,21 @@ class Finding:
 def evaluate_inventory(document: dict[str, Any]) -> list[Finding]:
     """Evaluate normalized resources without making network or cloud API calls."""
     if not isinstance(document, dict):
-        raise ValueError("Inventory root must be a JSON object")
+        raise TypeError("Inventory root must be a JSON object")
     resources = document.get("resources")
     if not isinstance(resources, list):
-        raise ValueError("'resources' must be a list")
+        raise TypeError("'resources' must be a list")
 
     findings: list[Finding] = []
     seen_ids: set[str] = set()
     for index, resource in enumerate(resources):
         if not isinstance(resource, dict):
-            raise ValueError(f"Resource at index {index} must be an object")
+            raise TypeError(f"Resource at index {index} must be an object")
         resource_id = resource.get("id")
-        if not isinstance(resource_id, str) or not resource_id.strip():
-            raise ValueError(f"Resource at index {index} requires a non-empty string 'id'")
+        if not isinstance(resource_id, str):
+            raise TypeError(f"Resource at index {index} requires a string 'id'")
+        if not resource_id.strip():
+            raise ValueError(f"Resource at index {index} requires a non-empty 'id'")
         if resource_id in seen_ids:
             raise ValueError(f"Duplicate resource id: {resource_id}")
         seen_ids.add(resource_id)
@@ -42,7 +44,10 @@ def evaluate_inventory(document: dict[str, Any]) -> list[Finding]:
         public = resource.get("publicly_accessible")
         owner = resource.get("owner")
         if not isinstance(encrypted, bool) or not isinstance(public, bool):
-            raise ValueError(f"Resource '{resource_id}' requires boolean encryption_at_rest and publicly_accessible")
+            raise TypeError(
+                f"Resource '{resource_id}' requires boolean "
+                "encryption_at_rest and publicly_accessible"
+            )
 
         findings.append(Finding(
             resource_id, "NEXUS-ENC-001", "high",
