@@ -1,6 +1,6 @@
 # ==========================================
-# ULTIMATE MULTI-REGION GLOBAL INFRASTRUCTURE (V4.0)
-# Production-Grade: Native S3 Locking, Multi-AZ, Private RTs & Security
+# AWS MULTI-REGION NETWORK LAB
+# Illustrative Terraform configuration; validation does not mean deployed or production-ready
 # ==========================================
 
 terraform {
@@ -140,10 +140,10 @@ resource "aws_route_table_association" "primary_priv_assoc_1b" {
   route_table_id = aws_route_table.primary_private_rt.id
 }
 
-# Strict Production Security Group
+# Example security group; review ingress and egress before deployment
 resource "aws_security_group" "primary_sg" {
   provider = aws.europe
-  name     = "primary-production-sg"
+  name     = "primary-example-sg"
   vpc_id   = aws_vpc.primary_vpc.id
 
   ingress {
@@ -167,7 +167,7 @@ resource "aws_security_group" "primary_sg" {
 
 
 # ==========================================
-# 2. INDIA REGION (AP-SOUTH-1 - DISASTER RECOVERY)
+# 2. SECONDARY REGION (EXAMPLE NETWORK ONLY; NOT DISASTER RECOVERY)
 # ==========================================
 
 resource "aws_vpc" "secondary_vpc" {
@@ -267,11 +267,11 @@ resource "aws_route_table_association" "secondary_priv_assoc_1b" {
 # Strict Production Security Group
 resource "aws_security_group" "secondary_sg" {
   provider = aws.india
-  name     = "secondary-production-sg"
+  name     = "secondary-example-sg"
   vpc_id   = aws_vpc.secondary_vpc.id
 
   ingress {
-    description = "Allow HTTPS from anywhere (ALB)"
+    description = "Example inbound HTTPS access from the internet"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
