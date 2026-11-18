@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "resources": [
+    {
+      "id": "storage-example-001",
+      "type": "storage",
+      "encryption_at_rest": true,
+      "publicly_accessible": false,
+      "owner": "platform-team"
+    },
+    {
+      "id": "database-example-002",
+      "type": "database",
+      "encryption_at_rest": false,
+      "publicly_accessible": true,
+      "owner": ""
+    }
+  ]
+}
