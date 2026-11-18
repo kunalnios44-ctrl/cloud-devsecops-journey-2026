@@ -26,6 +26,24 @@ def test_rejects_duplicate_resource_ids():
         evaluate_inventory({"resources": [resource, resource]})
 
 
-def test_rejects_invalid_root():
-    with pytest.raises(ValueError, match="root"):
+def test_rejects_invalid_root_type():
+    with pytest.raises(TypeError, match="root"):
         evaluate_inventory([])
+
+
+def test_rejects_invalid_resources_type():
+    with pytest.raises(TypeError, match="resources"):
+        evaluate_inventory({"resources": {}})
+
+
+def test_rejects_non_object_resource():
+    with pytest.raises(TypeError, match="index 0"):
+        evaluate_inventory({"resources": ["not-an-object"]})
+
+
+def test_rejects_non_boolean_controls():
+    with pytest.raises(TypeError, match="boolean"):
+        evaluate_inventory({"resources": [{
+            "id": "bad-1", "encryption_at_rest": "yes",
+            "publicly_accessible": False,
+        }]})
