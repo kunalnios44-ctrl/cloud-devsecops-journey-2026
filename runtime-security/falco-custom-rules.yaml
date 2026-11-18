@@ -2,7 +2,7 @@
   condition: evt.type = execve and container and (proc.name = "sh" or proc.name = "bash") and not container.image.repository startswith "trusted-registry/"
 
 - rule: Detect Unauthorized Shell In Container
-  desc: Detects an interactive shell spawned inside a production container.
+  desc: Detects a shell process launched inside a container outside the configured trusted image namespace.
   condition: spawn_critical_shell
   output: "Critical shell spawned (user=%user.name command=%proc.cmdline container_id=%container.id image=%container.image.repository)"
   priority: WARNING
