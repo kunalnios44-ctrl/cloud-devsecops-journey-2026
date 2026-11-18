@@ -111,7 +111,7 @@ if "${SYFT_BIN}" "${IMAGE_TARGET}" -o spdx-json > "${TEMP_FILE}"; then
         VALIDATION_STATUS="[Generated (Python lint skipped)]"
     fi
     mv "${TEMP_FILE}" "${OUTPUT_FILE}"
-    echo "[SUCCESS] Secure SBOM generated at: ${OUTPUT_FILE} ${VALIDATION_STATUS}"
+    echo "[SUCCESS] SBOM generated at: ${OUTPUT_FILE} ${VALIDATION_STATUS}"
 else
     echo "[ERROR] SBOM generation failed for target: ${IMAGE_TARGET}. Verify target source or network connectivity."
     exit 1
