@@ -1,0 +1,189 @@
+name: Nordic Enterprise CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nordic-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate and secure
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: nexus-core/pyproject.toml
+
+      - name: Install Python project and tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "nexus-core[dev]" checkov
+
+      - name: Ruff
+        run: ruff check nexus-core/src nexus-core/tests
+
+      - name: Pytest
+        run: pytest -q nexus-core/tests
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.4"
+          terraform_wrapper: false
+
+      - name: Terraform format
+        run: terraform fmt -check -recursive .
+
+      - name: Terraform init and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          for directory in "." "azure-zero-trust" "zero-trust-vpc"; do
+            echo "::group::Terraform validation: ${directory}"
+            terraform -chdir="${directory}" init -backend=false -input=false -no-color
+            terraform -chdir="${directory}" validate -no-color
+            echo "::endgroup::"
+          done
+
+      - name: Checkov
+        run: checkov --directory . --framework terraform --compact
+
+      - name: Gitleaks
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            zricethezav/gitleaks:v8.24.2 \
+            dir /repo --no-git --redact --exit-code 1
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+
+      - name: ShellCheck and Bash syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' scripts < <(find . -type f -name '*.sh' -not -path '*/.git/*' -print0)
+          if (("${#scripts[@]}" == 0)); then
+            echo "No shell scripts found."
+            exit 1
+          fi
+          for script in "${scripts[@]}"; do
+            bash -n "$script"
+          done
+          shellcheck --severity=warning "${scripts[@]}"
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Build Docker image
+        run: docker build --pull --file docker-ha-cluster/Dockerfile --tag nordic-nexus-ci:${{ github.sha }} docker-ha-cluster
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: nordic-nexus-ci:${{ github.sha }}
+          scanners: vuln,misconfig,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Kubeconform
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            ghcr.io/yannh/kubeconform:v0.6.7 \
+            -strict -summary /work/kubernetes/demo-manifest.yaml
+
+      - name: Validate S3 policy helper
+        run: bash aws-cloud-security/enforce-s3-security.sh --validate-only
+
+      - name: Generate SPDX SBOM with Syft
+        uses: anchore/sbom-action@v0.17.9
+        with:
+          image: nordic-nexus-ci:${{ github.sha }}
+          format: spdx-json
+          output-file: nordic-nexus-sbom.spdx.json
+          upload-artifact: false
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: nordic-nexus-sbom-${{ github.sha }}
+          path: nordic-nexus-sbom.spdx.json
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-and-sign:
+    name: Publish image and verify Cosign signature
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable image
+        id: publish
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-ha-cluster
+          file: docker-ha-cluster/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.2
+
+      - name: Sign and verify image digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+          cosign verify \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/ci-cd.yml@refs/heads/main$" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${IMAGE}@${DIGEST}"
