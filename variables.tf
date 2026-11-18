@@ -5,7 +5,7 @@
 variable "environment" {
   description = "Environment name for tagging and identification"
   type        = string
-  default     = "production"
+  default     = "lab"
 }
 
 variable "primary_region" {
