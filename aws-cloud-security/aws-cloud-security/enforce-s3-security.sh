@@ -4,7 +4,7 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-POLICY_FILE="$SCRIPT_DIR/s3-bucket-policy.json"
+POLICY_FILE="$SCRIPT_DIR/../s3-bucket-policy.json"
 
 BUCKET_NAME="${1:-}"
 
