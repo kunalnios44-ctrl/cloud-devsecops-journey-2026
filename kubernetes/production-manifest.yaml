@@ -1,12 +1,4 @@
 apiVersion: v1
-kind: Secret
-metadata:
-  name: db-secret
-type: Opaque
-stringData:
-  DB_PASS: "Denmark2027Secure!"
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
@@ -18,8 +10,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: denmark-prod-api
+  labels:
+    app.kubernetes.io/name: nordic-nexus-demo
+    app.kubernetes.io/part-of: nordic-nexus
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: denmark-api
@@ -28,37 +23,62 @@ spec:
       labels:
         app: denmark-api
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - name: api
-        image: nginx:1.26
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "250m"
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 3
-          periodSeconds: 5
-        envFrom:
-        - secretRef:
-            name: db-secret
-        - configMapRef:
-            name: app-config
+        - name: api
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_PASS
+                  optional: true
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: denmark-api-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: denmark-api
   ports:
-  - port: 80
-    targetPort: 80
-    
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
