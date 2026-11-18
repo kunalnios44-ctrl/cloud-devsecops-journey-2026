@@ -184,3 +184,10 @@ The next iterations will focus on modular Terraform, repeatable CI validation, s
 **Repository:** [cloud-devsecops-journey-2026](https://github.com/kunalnios44-ctrl/cloud-devsecops-journey-2026)  
 **Source control:** GitHub  
 **Status:** Work in progress
+
+
+## NORDIC NEXUS Core
+
+The repository now includes an initial, local-only policy evaluation engine under [`nexus-core/`](nexus-core/README.md). It evaluates normalized JSON inventory records for encryption-at-rest, public accessibility and owner metadata. A dedicated GitHub Actions workflow runs Ruff, unit tests and a sample evaluation.
+
+This is an early engineering foundation—not a live cloud scanner, production deployment or compliance certification. See [NORDIC NEXUS Core documentation](nexus-core/README.md) for setup, limitations and roadmap.
