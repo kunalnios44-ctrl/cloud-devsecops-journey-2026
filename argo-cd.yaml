@@ -1,19 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: global-infra-gitops
+  name: nordic-nexus-demo
   namespace: argocd
   labels:
-    environment: production
-    arch: multi-region
+    app.kubernetes.io/part-of: nordic-nexus
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/kunalnios44-ctrl/cloud-devsecops-journey-2026'
-    targetRevision: HEAD
-    path: '.'
+    repoURL: https://github.com/kunalnios44-ctrl/cloud-devsecops-journey-2026.git
+    targetRevision: main
+    path: kubernetes
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: https://kubernetes.default.svc
     namespace: default
   syncPolicy:
     automated:
@@ -21,4 +20,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      
