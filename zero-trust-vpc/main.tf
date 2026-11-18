@@ -22,6 +22,10 @@ provider "aws" {
 # Dynamic Availability Zones Discovery
 data "aws_availability_zones" "available" {
   state = "available"
+  filter {
+    name   = "zone-name"
+    values = ["${var.aws_region}a", "${var.aws_region}b"]
+  }
 }
 
 # 1. Zero-Trust Enterprise VPC
@@ -95,7 +99,9 @@ resource "aws_vpc_endpoint" "s3_private_endpoint" {
 
 # 5. Default Security Group Lockdown
 resource "aws_default_security_group" "default_lockdown" {
-  vpc_id = aws_vpc.enterprise_vpc.id
+  vpc_id  = aws_vpc.enterprise_vpc.id
+  ingress = []
+  egress  = []
 
   tags = {
     Name = "zero-trust-default-lockdown"
@@ -132,9 +138,16 @@ resource "aws_security_group" "workload_zero_trust_sg" {
 }
 
 # 7. Security Monitoring: VPC Flow Logs to CloudWatch
+resource "aws_kms_key" "vpc_flow_logs" {
+  description             = "Encrypt zero-trust VPC flow logs"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+}
+
 resource "aws_cloudwatch_log_group" "vpc_flow_log_group" {
   name              = "/aws/vpc/zero-trust-enterprise-flow-logs"
-  retention_in_days = 90
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.vpc_flow_logs.arn
 }
 
 resource "aws_iam_role" "vpc_flow_log_role" {
@@ -164,13 +177,20 @@ resource "aws_iam_role_policy" "vpc_flow_log_policy" {
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
+          "logs:PutLogEvents"
         ]
+        Resource = "${aws_cloudwatch_log_group.vpc_flow_log_group.arn}:*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
         Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogStreams"]
+        Resource = aws_cloudwatch_log_group.vpc_flow_log_group.arn
       }
     ]
   })
