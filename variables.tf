@@ -15,7 +15,7 @@ variable "primary_region" {
 }
 
 variable "secondary_region" {
-  description = "AWS Secondary/DR Region for India Operations"
+  description = "Secondary AWS example region; no DR replication or failover is configured"
   type        = string
   default     = "ap-south-1"
 }
