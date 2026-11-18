@@ -162,7 +162,7 @@ resource "aws_security_group" "primary_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "primary-secure-sg" }
+  tags = { Name = "primary-example-sg" }
 }
 
 
@@ -264,7 +264,7 @@ resource "aws_route_table_association" "secondary_priv_assoc_1b" {
   route_table_id = aws_route_table.secondary_private_rt.id
 }
 
-# Strict Production Security Group
+# Example Security Group; review rules before deployment
 resource "aws_security_group" "secondary_sg" {
   provider = aws.india
   name     = "secondary-example-sg"
@@ -286,5 +286,5 @@ resource "aws_security_group" "secondary_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "secondary-secure-sg" }
+  tags = { Name = "secondary-example-sg" }
 }
