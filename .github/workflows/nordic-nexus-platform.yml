@@ -89,7 +89,7 @@ jobs:
           shellcheck --severity=warning "${scripts[@]}"
 
       - name: Trivy filesystem security scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -102,7 +102,7 @@ jobs:
         run: docker build --pull --file docker-ha-cluster/Dockerfile --tag nordic-nexus-ci:${{ github.sha }} docker-ha-cluster
 
       - name: Trivy container image scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: nordic-nexus-ci:${{ github.sha }}
           scanners: vuln,misconfig,secret
