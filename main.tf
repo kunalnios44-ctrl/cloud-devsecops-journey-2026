@@ -13,7 +13,7 @@ terraform {
   }
   # Modern Native S3 Locking (No DynamoDB needed)
   backend "s3" {
-    bucket       = "kunal-global-terraform-state-bucket"
+    bucket       = "REPLACE_WITH_EXISTING_TERRAFORM_STATE_BUCKET"
     key          = "global-infra/terraform.tfstate"
     region       = "eu-north-1"
     encrypt      = true
@@ -23,25 +23,36 @@ terraform {
 
 provider "aws" {
   alias  = "europe"
-  region = "eu-north-1"
+  region = var.primary_region
 }
 
 provider "aws" {
   alias  = "india"
-  region = "ap-south-1"
+  region = var.secondary_region
+}
+
+# Discover available zones in each configured region
+data "aws_availability_zones" "europe" {
+  provider = aws.europe
+  state    = "available"
+}
+
+data "aws_availability_zones" "secondary" {
+  provider = aws.india
+  state    = "available"
 }
 
 # ==========================================
-# 1. EUROPE REGION (EU-NORTH-1 - PRIMARY)
+# 1. EUROPE REGION (PRIMARY)
 # ==========================================
 
 resource "aws_vpc" "primary_vpc" {
   provider             = aws.europe
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.primary_vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = { Name = "primary-vpc-eu" }
+  tags = { Name = "primary-vpc-eu", Environment = var.environment }
 }
 
 resource "aws_internet_gateway" "primary_igw" {
@@ -55,7 +66,7 @@ resource "aws_subnet" "primary_public_1a" {
   provider                = aws.europe
   vpc_id                  = aws_vpc.primary_vpc.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-north-1a"
+  availability_zone       = data.aws_availability_zones.europe.names[0]
   map_public_ip_on_launch = true
   tags                    = { Name = "primary-public-eu-1a" }
 }
@@ -64,7 +75,7 @@ resource "aws_subnet" "primary_public_1b" {
   provider                = aws.europe
   vpc_id                  = aws_vpc.primary_vpc.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = "eu-north-1b"
+  availability_zone       = data.aws_availability_zones.europe.names[1]
   map_public_ip_on_launch = true
   tags                    = { Name = "primary-public-eu-1b" }
 }
@@ -74,7 +85,7 @@ resource "aws_subnet" "primary_private_1a" {
   provider          = aws.europe
   vpc_id            = aws_vpc.primary_vpc.id
   cidr_block        = "10.0.10.0/24"
-  availability_zone = "eu-north-1a"
+  availability_zone = data.aws_availability_zones.europe.names[0]
   tags              = { Name = "primary-private-eu-1a" }
 }
 
@@ -82,7 +93,7 @@ resource "aws_subnet" "primary_private_1b" {
   provider          = aws.europe
   vpc_id            = aws_vpc.primary_vpc.id
   cidr_block        = "10.0.11.0/24"
-  availability_zone = "eu-north-1b"
+  availability_zone = data.aws_availability_zones.europe.names[1]
   tags              = { Name = "primary-private-eu-1b" }
 }
 
@@ -136,7 +147,7 @@ resource "aws_security_group" "primary_sg" {
   vpc_id   = aws_vpc.primary_vpc.id
 
   ingress {
-    description = "Allow HTTPS from anywhere (ALB)"
+    description = "Example inbound HTTPS access from the internet"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -161,11 +172,11 @@ resource "aws_security_group" "primary_sg" {
 
 resource "aws_vpc" "secondary_vpc" {
   provider             = aws.india
-  cidr_block           = "10.1.0.0/16"
+  cidr_block           = var.secondary_vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = { Name = "secondary-vpc-in" }
+  tags = { Name = "secondary-vpc-example", Environment = var.environment }
 }
 
 resource "aws_internet_gateway" "secondary_igw" {
@@ -179,7 +190,7 @@ resource "aws_subnet" "secondary_public_1a" {
   provider                = aws.india
   vpc_id                  = aws_vpc.secondary_vpc.id
   cidr_block              = "10.1.1.0/24"
-  availability_zone       = "ap-south-1a"
+  availability_zone       = data.aws_availability_zones.secondary.names[0]
   map_public_ip_on_launch = true
   tags                    = { Name = "secondary-public-in-1a" }
 }
@@ -188,7 +199,7 @@ resource "aws_subnet" "secondary_public_1b" {
   provider                = aws.india
   vpc_id                  = aws_vpc.secondary_vpc.id
   cidr_block              = "10.1.2.0/24"
-  availability_zone       = "ap-south-1b"
+  availability_zone       = data.aws_availability_zones.secondary.names[1]
   map_public_ip_on_launch = true
   tags                    = { Name = "secondary-public-in-1b" }
 }
@@ -198,7 +209,7 @@ resource "aws_subnet" "secondary_private_1a" {
   provider          = aws.india
   vpc_id            = aws_vpc.secondary_vpc.id
   cidr_block        = "10.1.10.0/24"
-  availability_zone = "ap-south-1a"
+  availability_zone = data.aws_availability_zones.secondary.names[0]
   tags              = { Name = "secondary-private-in-1a" }
 }
 
@@ -206,7 +217,7 @@ resource "aws_subnet" "secondary_private_1b" {
   provider          = aws.india
   vpc_id            = aws_vpc.secondary_vpc.id
   cidr_block        = "10.1.11.0/24"
-  availability_zone = "ap-south-1b"
+  availability_zone = data.aws_availability_zones.secondary.names[1]
   tags              = { Name = "secondary-private-in-1b" }
 }
 
