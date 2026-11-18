@@ -37,11 +37,11 @@ data "azurerm_client_config" "current" {}
 
 # 1. Enterprise Resource Group
 resource "azurerm_resource_group" "enterprise_rg" {
-  name     = "rg-kunal-enterprise-production-eu"
+  name     = "rg-nordic-nexus-lab-eu"
   location = var.location
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
     ManagedBy   = "Terraform"
     Security    = "Zero-Trust"
   }
@@ -55,7 +55,7 @@ resource "azurerm_virtual_network" "hub_vnet" {
   resource_group_name = azurerm_resource_group.enterprise_rg.name
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
     Tier        = "Hub"
   }
 }
@@ -105,7 +105,7 @@ resource "azurerm_network_security_group" "hub_mgmt_nsg" {
   }
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
   }
 }
 
@@ -122,7 +122,7 @@ resource "azurerm_virtual_network" "spoke_vnet" {
   resource_group_name = azurerm_resource_group.enterprise_rg.name
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
     Tier        = "Spoke"
   }
 }
@@ -210,7 +210,7 @@ resource "azurerm_firewall" "hub_fw" {
   }
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
   }
 }
 
@@ -301,7 +301,7 @@ resource "azurerm_network_security_group" "workload_nsg" {
   }
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
   }
 }
 
@@ -384,7 +384,7 @@ resource "azurerm_network_security_group" "pe_nsg" {
   }
 
   tags = {
-    Environment = "Production"
+    Environment = "Lab"
   }
 }
 
