@@ -32,7 +32,7 @@ def main() -> int:
         }
         print(json.dumps(report, indent=2))
         return 1 if report["summary"]["failed"] else 0
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         print(f"nexus-core: {exc}", file=sys.stderr)
         return 2
 
