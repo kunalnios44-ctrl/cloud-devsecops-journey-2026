@@ -147,7 +147,7 @@ Review the script and generated report before using the output in a release or c
 
 ## 7. CI/CD validation
 
-The active workflow is [NORDIC NEXUS Unified CI/CD](.github/workflows/nordic-nexus-platform.yml). It is the only workflow directly under the repository's root `.github/workflows/` directory.
+The active workflow is [Nordic Enterprise CI/CD](.github/workflows/ci-cd.yml). It is the only workflow directly under the repository's root `.github/workflows/` directory.
 
 The workflow uses these 12 tools: Python, Ruff, Pytest, Terraform, Checkov, Gitleaks, ShellCheck, Trivy, Docker, Kubeconform, Syft and Cosign. GitHub Actions is the runner/orchestration platform and is not counted as one of the 12 tools.
 
