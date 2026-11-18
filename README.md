@@ -79,8 +79,7 @@ flowchart TB
 ├── argo-cd.yaml
 ├── aws-cloud-security/
 │   ├── s3-bucket-policy.json
-│   └── aws-cloud-security/
-│       └── enforce-s3-security.sh
+│   └── enforce-s3-security.sh
 ├── azure-zero-trust/
 │   └── main.tf
 ├── docker-ha-cluster/
@@ -95,7 +94,6 @@ flowchart TB
 │   └── tests/
 ├── supply-chain/
 │   ├── sbom-scan.sh
-│   └── supply-chain/cosign-sign.sh
 ├── bash-automation/scripts/
 ├── network-diagnostics/       # incomplete WIP; not CI-validated
 ├── runtime-security/
