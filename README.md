@@ -140,7 +140,7 @@ chmod +x supply-chain/sbom-scan.sh
 Another image can be supplied as the script argument:
 
 ```bash
-./supply-chain/sbom-scan.sh nginx:1.27-alpine
+./supply-chain/sbom-scan.sh nginxinc/nginx-unprivileged:1.27-alpine
 ```
 
 Review the script and generated report before using the output in a release or compliance process. An SBOM is an inventory artefact; it does not by itself prove that an image is secure.
@@ -171,6 +171,11 @@ terraform validate
 terraform -chdir=azure-zero-trust init -backend=false
 terraform -chdir=azure-zero-trust fmt -check
 terraform -chdir=azure-zero-trust validate
+
+# Additional AWS zero-trust VPC example
+terraform -chdir=zero-trust-vpc init -backend=false
+terraform -chdir=zero-trust-vpc fmt -check
+terraform -chdir=zero-trust-vpc validate
 ```
 
 Validation may require provider downloads and a compatible Terraform version. The root AWS configuration declares Terraform >= 1.11.0, < 2.0.0; the Azure module declares its own version and provider constraints.
