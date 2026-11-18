@@ -83,7 +83,9 @@ jobs:
             echo "No shell scripts found."
             exit 1
           fi
-          bash -n "${scripts[@]}"
+          for script in "${scripts[@]}"; do
+            bash -n "$script"
+          done
           shellcheck --severity=warning "${scripts[@]}"
 
       - name: Trivy filesystem security scan
@@ -113,7 +115,7 @@ jobs:
           docker run --rm -v "${{ github.workspace }}:/work" ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary /work/kubernetes/demo-manifest.yaml
 
       - name: Validate S3 policy helper without cloud access
-        run: bash aws-cloud-security/aws-cloud-security/enforce-s3-security.sh --validate-only
+        run: bash aws-cloud-security/enforce-s3-security.sh --validate-only
 
       - name: Generate SPDX SBOM with Syft
         uses: anchore/sbom-action@v0.17.9
