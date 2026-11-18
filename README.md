@@ -30,8 +30,11 @@ The current AWS network example uses **Stockholm (eu-north-1)**, which is an AWS
 | Kubernetes | Workload manifest under kubernetes/. |
 | GitOps | Argo CD Application manifest in argo-cd.yaml. |
 | AWS storage security | S3 bucket policy example for transport security and encryption requirements. |
-| Supply-chain security | SBOM generation helper under supply-chain/, using Syft and validating the generated JSON output. |
-| Automation | Bash scripts and supporting operational modules. |
+| Supply-chain security | Syft SBOM generation in CI, plus a separate local SBOM helper under supply-chain/. |
+| CI/CD | One root-level GitHub Actions workflow validates code and infrastructure, scans source and image, publishes the container to GHCR, and signs/verifies its digest. |
+| Automation | Bash scripts, an S3 policy helper and runtime-security examples. |
+| Python policy engine | Local-only JSON inventory evaluator under nexus-core/. |
+| Go network diagnostics | Incomplete work in progress; not built, tested or included in the CI gate. |
 
 ## 3. Architecture overview
 
@@ -75,7 +78,9 @@ flowchart TB
 ├── outputs.tf
 ├── argo-cd.yaml
 ├── aws-cloud-security/
-│   └── s3-bucket-policy.json
+│   ├── s3-bucket-policy.json
+│   └── aws-cloud-security/
+│       └── enforce-s3-security.sh
 ├── azure-zero-trust/
 │   └── main.tf
 ├── docker-ha-cluster/
@@ -84,11 +89,15 @@ flowchart TB
 │   ├── deploy.sh
 │   └── nginx.conf
 ├── kubernetes/
-│   └── production-manifest.yaml
+│   └── demo-manifest.yaml
+├── nexus-core/
+│   ├── src/nexus_core/
+│   └── tests/
 ├── supply-chain/
-│   └── sbom-scan.sh
-├── bash-automation/
-├── network-diagnostics/
+│   ├── sbom-scan.sh
+│   └── supply-chain/cosign-sign.sh
+├── bash-automation/scripts/
+├── network-diagnostics/       # incomplete WIP; not CI-validated
 ├── runtime-security/
 └── zero-trust-vpc/
 ```
@@ -99,9 +108,9 @@ Some modules are still being developed. A directory or configuration file being 
 
 ### AWS — Stockholm, Sweden 🇸🇪
 
-The root Terraform configuration includes an AWS provider alias for **Stockholm (eu-north-1)**. The Europe network example defines a VPC with public and private subnets across two availability zones, internet-gateway routing for public subnets, dedicated private route tables and a security group with HTTPS ingress.
+The root Terraform configuration defaults to **Stockholm (eu-north-1)** and uses a configurable secondary AWS region (default **ap-south-1**) as a separate network example. The primary example defines public and private subnets across two discovered availability zones, internet-gateway routing for public subnets, dedicated private route tables and a security group with HTTPS ingress. Its outbound rule currently allows all IPv4 egress; it is not a strict zero-trust egress policy. The secondary VPC is only a network template—not a working disaster-recovery system, because replication, failover and recovery procedures are not implemented.
 
-The Terraform backend block is configured for an S3 remote state bucket with encryption and native state locking (use_lockfile = true). The backend bucket must exist and be secured before initialising with the remote backend. Never commit cloud credentials or Terraform state files to Git.
+The Terraform backend block contains the explicit placeholder `REPLACE_WITH_EXISTING_TERRAFORM_STATE_BUCKET`, with encryption and native state locking (`use_lockfile = true`). Replace it with an existing secured bucket before using the remote backend. The CI workflow uses `init -backend=false` and does not access this bucket. Never commit cloud credentials or Terraform state files to Git.
 
 ### Azure — North Europe (Ireland)
 
@@ -121,7 +130,7 @@ Provider compatibility, network rules, routing, regional service availability an
 
 ## 6. Software supply-chain workflow
 
-The supply-chain/sbom-scan.sh helper is intended to generate an SPDX JSON software bill of materials for a container image.
+The unified GitHub Actions workflow builds the Python demo image and generates an SPDX JSON SBOM with Syft. The SBOM is uploaded as a workflow artifact. The separate `supply-chain/sbom-scan.sh` helper can generate an SBOM locally for a supplied image.
 
 Example:
 
@@ -138,7 +147,19 @@ Another image can be supplied as the script argument:
 
 Review the script and generated report before using the output in a release or compliance process. An SBOM is an inventory artefact; it does not by itself prove that an image is secure.
 
-## 7. Local validation
+## 7. CI/CD validation
+
+The active workflow is [NORDIC NEXUS Unified CI/CD](.github/workflows/nordic-nexus-platform.yml). It is the only workflow directly under the repository's root `.github/workflows/` directory.
+
+The workflow uses these 12 tools: Python, Ruff, Pytest, Terraform, Checkov, Gitleaks, ShellCheck, Trivy, Docker, Kubeconform, Syft and Cosign. GitHub Actions is the runner/orchestration platform and is not counted as one of the 12 tools.
+
+On pushes and pull requests to `main`, CI runs Python lint/tests, Terraform formatting and validation for the root, Azure and zero-trust VPC configurations, Checkov, a current-working-tree Gitleaks scan, ShellCheck, Trivy filesystem and container-image scans, Docker build, Kubernetes schema validation and SBOM generation. The Gitleaks step uses `--no-git`, so it does not scan historical commits.
+
+On a successful push to `main`, the release job publishes the application image to GitHub Container Registry and performs keyless Cosign signing plus signature verification. This is image publishing and signing—not deployment to AWS, Azure or a Kubernetes cluster.
+
+The Kubernetes manifest is a separate unprivileged Nginx demo workload. It is not the Python image published by the release job. The Argo CD file is only a declarative Application configuration; no connected cluster or successful Argo CD sync is claimed.
+
+## 8. Local validation
 
 Validate each Terraform root separately. These commands initialise providers without configuring the remote state backend:
 
@@ -166,7 +187,7 @@ Before any real deployment:
 
 This README does not claim a successful cloud deployment, uptime target, compliance certification or passing pipeline unless supporting evidence is committed.
 
-## 8. Engineering principles
+## 9. Engineering principles
 
 - **Least privilege:** scope identities and permissions to the resources that need them.
 - **Private by design:** use private subnets and private endpoints where the architecture supports them.
@@ -175,7 +196,7 @@ This README does not claim a successful cloud deployment, uptime target, complia
 - **Safe change management:** inspect plans, diffs and validation output before applying changes.
 - **Honest status reporting:** distinguish code that exists, code that validates and infrastructure that has actually been deployed.
 
-## 9. Next engineering direction
+## 10. Next engineering direction
 
 The next iterations will focus on modular Terraform, repeatable CI validation, security-control testing, operational documentation and region-aware design for Denmark 🇩🇰, Finland 🇫🇮 and Sweden 🇸🇪. Country-specific cloud placement will only be claimed when the chosen provider actually offers the required service in that region.
 
@@ -188,6 +209,6 @@ The next iterations will focus on modular Terraform, repeatable CI validation, s
 
 ## NORDIC NEXUS Core
 
-The repository now includes an initial, local-only policy evaluation engine under [`nexus-core/`](nexus-core/README.md). It evaluates normalized JSON inventory records for encryption-at-rest, public accessibility and owner metadata. A dedicated GitHub Actions workflow runs Ruff, unit tests and a sample evaluation.
+The repository includes an initial, local-only policy evaluation engine under [`nexus-core/`](nexus-core/README.md). It evaluates normalized JSON inventory records for encryption-at-rest, public accessibility and owner metadata. Ruff and Pytest are run by the unified NORDIC NEXUS workflow.
 
 This is an early engineering foundation—not a live cloud scanner, production deployment or compliance certification. See [NORDIC NEXUS Core documentation](nexus-core/README.md) for setup, limitations and roadmap.
