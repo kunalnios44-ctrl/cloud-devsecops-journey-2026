@@ -1,0 +1,101 @@
+name: Global Platform CI & Zero-Trust Gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zero-trust-gate:
+    name: Zero-Trust Validation & Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Run Python syntax and script checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python --version
+          if [ -d "platform" ] && find platform -name "*.py" -print -quit | grep -q .; then
+            python -m compileall -q platform
+          fi
+          echo "Python check passed"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Run Terraform format and validate checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform version
+          if [ -d "infra" ] && find infra -name "*.tf" -print -quit | grep -q .; then
+            terraform -chdir=infra fmt -check -recursive
+            terraform -chdir=infra init -backend=false -input=false
+            terraform -chdir=infra validate
+          fi
+          echo "Terraform check passed"
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.16.3"
+
+      - name: Run Helm and Kubernetes manifest checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm version
+          for chart_dir in platform/*/Chart.yaml; do
+            if [ -f "$chart_dir" ]; then
+              helm lint "$(dirname "$chart_dir")"
+            fi
+          done
+          echo "Helm/Kubernetes check passed"
+
+      - name: Run Semgrep static analysis
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/ci
+
+      - name: Run Trivy filesystem security scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: "."
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+      - name: Verify OIDC token availability for keyless cloud flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+            echo "OIDC identity context is available"
+          else
+            echo "OIDC token request variables not present in this event context"
+          fi
+          
