@@ -1,0 +1,7 @@
+{
+  "env": "prod",
+  "region": "eu-north-1",
+  "replicas": 2,
+  "least_privilege": true,
+  "dr_verified": true
+}
