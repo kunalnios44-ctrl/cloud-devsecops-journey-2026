@@ -1,0 +1,130 @@
+
+name: Platform Guardrail CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "platform-guardrail/**"
+      - ".github/workflows/platform-guardrail-ci.yml"
+
+  pull_request:
+    paths:
+      - "platform-guardrail/**"
+      - ".github/workflows/platform-guardrail-ci.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-guardrail-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardrail-verification:
+    name: Go Platform Guardrail Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: platform-guardrail
+
+    steps:
+      # 1. Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Validate project files
+      - name: Validate Go project files
+        run: |
+          test -f go.mod
+          test -f main.go
+          test -f main_test.go
+          test -f config.json
+
+      # 3. Configure Go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: platform-guardrail/go.mod
+          cache: true
+          cache-dependency-path: platform-guardrail/go.sum
+
+      # 4. Verify Go formatting
+      - name: Check Go formatting
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+
+          if [ -n "$UNFORMATTED" ]; then
+            echo "ERROR: Go formatting violations found:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+          echo "Go formatting verification passed."
+
+      # 5. Validate module dependencies
+      - name: Verify Go modules
+        run: |
+          go mod verify
+          go mod tidy -diff
+
+      # 6. Static code analysis
+      - name: Run Go Vet
+        run: go vet ./...
+
+      # 7. Run unit tests with race detection
+      - name: Run Unit Tests
+        run: go test -v -race ./...
+
+      # 8. Generate coverage report
+      - name: Generate Test Coverage
+        run: |
+          go test -race \
+            -coverprofile=coverage.out \
+            -covermode=atomic ./...
+
+          go tool cover -func=coverage.out
+
+      # 9. Verify coverage report
+      - name: Validate Coverage Artifact
+        run: |
+          test -s coverage.out
+          echo "Coverage report generated successfully."
+
+      # 10. Verify CLI configuration
+      - name: Run Platform Guardrail CLI
+        run: |
+          echo "Starting configuration verification..."
+          go run .
+
+      # 11. Final verification
+      - name: Verification Summary
+        if: success()
+        run: |
+          echo "=================================="
+          echo "PLATFORM GUARDRAIL CI PASSED"
+          echo "=================================="
+          echo "Go formatting       : PASSED"
+          echo "Go modules          : PASSED"
+          echo "Static analysis     : PASSED"
+          echo "Unit tests          : PASSED"
+          echo "Race detection      : PASSED"
+          echo "Coverage generation : PASSED"
+          echo "CLI verification    : PASSED"
+          echo "=================================="
+
+      # 12. Upload coverage report
+      - name: Upload Coverage Report
+        if: always() && hashFiles('platform-guardrail/coverage.out') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-guardrail-coverage
+          path: platform-guardrail/coverage.out
+          if-no-files-found: warn
+          retention-days: 14
+          
